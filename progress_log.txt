@@ -1,5 +1,5 @@
-1. Initial setup: created HTML/JS canvas coin game (640x360), verify scripts, AGENTS guide.
-2. Visual changes: forest -> starfield -> reset -> grassfield; added intersections (asphalt -> gravel), static gravel.
-3. Player art: ghost sprite with glow and face.
-4. World building: doubled canvas to 1280x720; grass texture, straw blades, four houses (6x3 grid) in each quadrant; house doors labeled Room 1-4.
-5. Interaction: `E` to enter/exit houses; unique interior themes per room with overlays; state management prevents movement logic during interior mode.
+1. Base setup: HTML/JS canvas (1280x720) village game with verify scripts and AGENTS guidelines; core features include WASD movement, coin/pickup converted to key system.
+2. Village 1: grass field, gravel crossroad, houses (Rooms 1-4) with door labels and entry loop. Art updates include ghost→Link-like hero sprite, dig site, Danger/Warning entry sign.
+3. Rooms: Room1 kitchen with fridge/oven/shovel; Room2 checkerboard + sink/toilet unlocking keys; Room3 dance floor, DJ stand (grants shovel) and disco ball; Room4 poop-themed throne room. All rooms use key interactions + play checks per AGENTS guide.
+4. Keys & inventory: Key 1 (field pickup), Key 2 (Room1 oven), Key 3 (Room2 sink), Key 4 (dig site). HUD shows key status + shovel. Dig site requires shovel and yields Key4 once.
+5. Dungeon1: accessed via village sign only after collecting all 4 keys. Dungeon map uses static grey rock walls, pre-defined branch paths, stalagmites, and exit sign requiring E to return to Village1. Movement constrained to paths via collision checks.
