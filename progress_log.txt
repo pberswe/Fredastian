@@ -1,0 +1,5 @@
+1. Initial setup: created HTML/JS canvas coin game (640x360), verify scripts, AGENTS guide.
+2. Visual changes: forest -> starfield -> reset -> grassfield; added intersections (asphalt -> gravel), static gravel.
+3. Player art: ghost sprite with glow and face.
+4. World building: doubled canvas to 1280x720; grass texture, straw blades, four houses (6x3 grid) in each quadrant; house doors labeled Room 1-4.
+5. Interaction: `E` to enter/exit houses; unique interior themes per room with overlays; state management prevents movement logic during interior mode.
