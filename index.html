@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fredastian Adventure</title>
+    <style>
+      body {
+        background: #0e1424;
+        color: #f8f8f2;
+        font-family: "Trebuchet MS", sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        margin: 0;
+        min-height: 100vh;
+        padding-top: 24px;
+      }
+
+      canvas {
+        border: 4px solid #f5d442;
+        background: #0c1a2c;
+        image-rendering: pixelated;
+      }
+
+      .instructions {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 12px 16px;
+        max-width: 420px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Fredastian Adventure</h1>
+    <canvas id="game" width="640" height="360"></canvas>
+    <div class="instructions">
+      Use WASD or arrow keys to collect glowing coins. Every pickup boosts your score and moves the coin somewhere new!
+    </div>
+    <script src="game.js"></script>
+  </body>
+</html>
