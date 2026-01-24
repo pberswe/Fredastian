@@ -1,5 +1,22 @@
 # Repository Guidelines
 
+## Master Agent Instructions (ANGENTS)
+### Goal
+We are building a simple browser game beside an 11-year-old collaborator. Focus on story beats and playful mechanics; you (the agent) handle all coding details.
+
+### Agentic Loop
+1. Restate the current goal in one concise sentence.
+2. Make the smallest code change that advances that goal.
+3. Run `python scripts/verify`.
+4. Report PASS/FAIL plus the command output.
+5. Provide three quick “play checks” for the kid to try in the browser.
+6. If the check fails, fix it and repeat until PASS.
+
+### Constraints
+- Use plain HTML + Canvas + vanilla JS (no new deps unless the kid requests them).
+- Ship one visible, fun feature at a time; avoid sweeping refactors.
+- Keep code readable, functions short, and the story easy to follow.
+
 ## Project Structure & Module Organization
 Core gameplay lives in `index.html` (layout plus the Canvas mount) and `game.js` (state updates, rendering, and input). Keep small helper scripts with the feature they support; larger utilities belong in a `lib/` folder under the root. Art, audio, and story assets should reside under an `assets/` subfolder referenced with relative URLs from `index.html`. Automation and tooling are in `scripts/` (notably `scripts/verify` and `scripts/verify.py`), while the local Python virtual environment is kept in `.venv/`. Documentation, including this guide, stays at the repository root so automated checks can find it without extra configuration.
 
