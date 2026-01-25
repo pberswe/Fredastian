@@ -3,3 +3,5 @@
 3. Rooms: Room1 kitchen with fridge/oven/shovel; Room2 checkerboard + sink/toilet unlocking keys; Room3 dance floor, DJ stand (grants shovel) and disco ball; Room4 poop-themed throne room. All rooms use key interactions + play checks per AGENTS guide.
 4. Keys & inventory: Key 1 (field pickup), Key 2 (Room1 oven), Key 3 (Room2 sink), Key 4 (dig site). HUD shows key status + shovel. Dig site requires shovel and yields Key4 once.
 5. Dungeon1: accessed via village sign only after collecting all 4 keys. Dungeon map uses static grey rock walls, pre-defined branch paths, stalagmites, and exit sign requiring E to return to Village1. Movement constrained to paths via collision checks.
+6. HUD + tooling: replaced key text HUD with 5-slot bar (4 keys + shovel icon); swapped verify to Node-based ./scripts/verify and removed python/typo files.
+7. Ending path: dungeon warning sign opens cave; dragon fight with sword + hearts; victory field with cage and princess who can follow after E; added bow/arrows, hammer gate, spikes, and debug lock toggle.

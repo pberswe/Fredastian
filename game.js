@@ -1,5 +1,5 @@
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+let canvas = document.getElementById("game");
+let ctx = canvas.getContext("2d");
 
 const GRID_SIZE = 40;
 const ROAD_WIDTH = 80;
@@ -10,8 +10,31 @@ const DUNGEON_PATHS = [
   { x: 440, y: 460, w: 480, h: 110 },
   { x: 400, y: 160, w: 140, h: 80 },
   { x: 700, y: 160, w: 120, h: 80 },
+  { x: 960, y: 140, w: 140, h: 220 },
   { x: 900, y: canvas.height / 2 - 40, w: 140, h: 80 },
   { x: 80, y: 200, w: 200, h: 260 },
+];
+const DUNGEON_SPIKES = [
+  { x: 150, y: 360, w: 16, h: 12 },
+  { x: 210, y: 360, w: 16, h: 12 },
+  { x: 270, y: 360, w: 16, h: 12 },
+  { x: 330, y: 468, w: 16, h: 12 },
+  { x: 430, y: 468, w: 16, h: 12 },
+  { x: 520, y: 468, w: 16, h: 12 },
+  { x: 660, y: 468, w: 16, h: 12 },
+  { x: 820, y: 360, w: 16, h: 12 },
+  { x: 900, y: 360, w: 16, h: 12 },
+  { x: 320, y: 200, w: 16, h: 12 },
+  { x: 420, y: 200, w: 16, h: 12 },
+  { x: 580, y: 320, w: 16, h: 12 },
+  { x: 580, y: 566, w: 16, h: 12 },
+  { x: 680, y: 320, w: 16, h: 12 },
+  { x: 680, y: 566, w: 16, h: 12 },
+  { x: 440, y: 460, w: 16, h: 12 },
+  { x: 520, y: 460, w: 16, h: 12 },
+  { x: 840, y: 460, w: 16, h: 12 },
+  { x: 80, y: 200, w: 16, h: 12 },
+  { x: 80, y: 440, w: 16, h: 12 },
 ];
 const roomThemes = [
   {
@@ -61,7 +84,17 @@ const state = {
   player: { x: canvas.width / 2, y: canvas.height / 2, radius: 14, speed: 190 },
   jump: { active: false, timer: 0, duration: 0.4, height: 12 },
   key: { x: 0, y: 0, radius: 12, collected: false },
-  inventory: { key1: false, key2: false, key3: false, key4: false, shovel: false },
+  inventory: {
+    key1: false,
+    key2: false,
+    key3: false,
+    key4: false,
+    shovel: false,
+    sword: false,
+    hammer: false,
+    bow: false,
+    arrows: 0,
+  },
   mode: "village1",
   currentHouse: null,
   lastFieldPosition: null,
@@ -74,6 +107,13 @@ const state = {
   digSiteUsed: false,
   savedFieldPosition: null,
   debugLogs: [],
+  debugBypassLocks: false,
+  dragonHits: 0,
+  dragonDefeated: false,
+  health: 5,
+  maxHealth: 5,
+  princessFollowing: false,
+  princessPos: { x: 0, y: 0 },
 };
 
 const keys = {
@@ -88,6 +128,7 @@ const gravelField = {
   horizontal: [],
 };
 let strawField = [];
+let victoryStraws = [];
 
 function generateGravel() {
   const verticalCount = 150;
@@ -119,6 +160,16 @@ function generateStraws() {
   }));
 }
 
+function generateVictoryStraws() {
+  const strawCount = 220;
+  victoryStraws = Array.from({ length: strawCount }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    height: 8 + Math.random() * 14,
+    lean: (Math.random() - 0.5) * 6,
+  }));
+}
+
 const keyLookup = {
   ArrowUp: "up",
   KeyW: "up",
@@ -141,36 +192,47 @@ placeKey();
 function collectKey() {
   state.key.collected = true;
   state.inventory.key1 = true;
-  state.roomsUnlocked[0] = true;
-  state.lockNoticeText = "Room 1 unlocked!";
-  state.lockNoticeTimer = 2.5;
+  state.lockNoticeText = "Found Key 1!";
+  state.lockNoticeTimer = 2;
   addDebugLog("Collected Village Key 1");
 }
 
 function giveRoomTwoKey() {
   state.inventory.key2 = true;
-  state.roomsUnlocked[1] = true;
   state.ovenKeyGiven = true;
-  state.lockNoticeText = "Room 2 unlocked!";
-  state.lockNoticeTimer = 2.5;
+  state.lockNoticeText = "Found Key 2!";
+  state.lockNoticeTimer = 2;
   addDebugLog("Received Room 2 key from oven");
 }
 
 function giveRoomThreeKey() {
   state.inventory.key3 = true;
-  state.roomsUnlocked[2] = true;
   state.toiletKeyGiven = true;
-  state.lockNoticeText = "Room 3 unlocked!";
-  state.lockNoticeTimer = 2.5;
+  state.lockNoticeText = "Found Key 3!";
+  state.lockNoticeTimer = 2;
   addDebugLog("Received Room 3 key from sink");
 }
 
 function giveRoomFourKey() {
   state.inventory.key4 = true;
-  state.roomsUnlocked[3] = true;
-  state.lockNoticeText = "Room 4 unlocked!";
-  state.lockNoticeTimer = 2.5;
+  state.lockNoticeText = "Found Key 4!";
+  state.lockNoticeTimer = 2;
   addDebugLog("Dug up Room 4 key in Village 1");
+}
+
+function giveSword() {
+  state.inventory.sword = true;
+  state.lockNoticeText = "Found a sword in the cabinet!";
+  state.lockNoticeTimer = 2.5;
+  addDebugLog("Found a sword in Room 1 cabinet");
+}
+
+function giveBowAndArrows() {
+  state.inventory.bow = true;
+  state.inventory.arrows = 5;
+  state.lockNoticeText = "Found a bow and arrows!";
+  state.lockNoticeTimer = 2.5;
+  addDebugLog("Opened dungeon chest for bow and arrows");
 }
 
 function handleKey(evt, pressed) {
@@ -193,6 +255,7 @@ function handleKey(evt, pressed) {
 
 document.addEventListener("keydown", (evt) => handleKey(evt, true));
 document.addEventListener("keyup", (evt) => handleKey(evt, false));
+bindCanvasEvents();
 
 function handleInteract() {
   if (state.mode === "house") {
@@ -201,6 +264,13 @@ function handleInteract() {
       const ovenRect = getRoomOneOvenRect();
       if (pointInRect(state.player.x, state.player.y, ovenRect)) {
         giveRoomTwoKey();
+        return;
+      }
+    }
+    if (roomNumber === 1 && !state.inventory.sword) {
+      const cabinetRect = getRoomOneCabinetRect();
+      if (pointInRect(state.player.x, state.player.y, cabinetRect)) {
+        giveSword();
         return;
       }
     }
@@ -235,6 +305,16 @@ function handleInteract() {
   }
   if (state.mode === "dungeon1") {
     const exitSign = getDungeonExitSignRect();
+    const warningSign = getDungeonWarningSignRect();
+    const chestRect = getDungeonChestRect();
+    if (!state.inventory.bow && pointInRect(state.player.x, state.player.y, chestRect)) {
+      giveBowAndArrows();
+      return;
+    }
+    if (pointInRect(state.player.x, state.player.y, warningSign)) {
+      enterOpenCave();
+      return;
+    }
     if (pointInRect(state.player.x, state.player.y, exitSign)) {
       exitDungeonToField();
       return;
@@ -242,6 +322,46 @@ function handleInteract() {
     state.lockNoticeText = "Dungeon 1 is eerily silent.";
     state.lockNoticeTimer = 1.5;
     return;
+  }
+  if (state.mode === "cave") {
+    const dragonRect = getCaveDragonRect();
+    if (pointInRect(state.player.x, state.player.y, dragonRect)) {
+      if (!state.inventory.sword) {
+        state.lockNoticeText = "You need a sword to fight the dragon.";
+        state.lockNoticeTimer = 2;
+        return;
+      }
+      if (state.dragonDefeated) {
+        state.lockNoticeText = "The dragon is already defeated.";
+        state.lockNoticeTimer = 1.6;
+        return;
+      }
+      state.dragonHits += 1;
+      if (state.dragonHits % 3 === 0 && state.health > 0) {
+        state.health = Math.max(0, state.health - 1);
+      }
+      if (state.dragonHits >= 10) {
+        state.dragonDefeated = true;
+        state.lockNoticeText = "The dragon falls!";
+        state.lockNoticeTimer = 2.2;
+        enterVictoryField();
+      } else {
+        state.lockNoticeText = `Hit ${state.dragonHits}/10`;
+        state.lockNoticeTimer = 1.2;
+      }
+      return;
+    }
+  }
+  if (state.mode === "victoryField") {
+    const cageRect = getFieldCageRect();
+    if (pointInRect(state.player.x, state.player.y, cageRect)) {
+      if (!state.princessFollowing) {
+        state.princessFollowing = true;
+        state.lockNoticeText = "The princess follows you!";
+        state.lockNoticeTimer = 1.8;
+      }
+      return;
+    }
   }
   if (state.mode === "village1") {
     const entrySign = getVillageSignRect();
@@ -256,6 +376,67 @@ function handleInteract() {
   const doorHit = detectDoorOverlap();
   if (doorHit) {
     enterHouse(doorHit.index, doorHit.doorRect);
+  }
+}
+
+function bindCanvasEvents() {
+  canvas.addEventListener("click", (evt) => handleClick(evt));
+}
+
+function enterOpenCave() {
+  const parent = canvas.parentNode;
+  if (!parent) return;
+  const newCanvas = document.createElement("canvas");
+  newCanvas.id = "game";
+  newCanvas.width = canvas.width;
+  newCanvas.height = canvas.height;
+  parent.replaceChild(newCanvas, canvas);
+  canvas = newCanvas;
+  ctx = canvas.getContext("2d");
+  bindCanvasEvents();
+  state.mode = "cave";
+  state.player.x = canvas.width / 2;
+  state.player.y = canvas.height / 2;
+  state.lockNoticeText = "The cave opens wide...";
+  state.lockNoticeTimer = 2.2;
+}
+
+function enterVictoryField() {
+  const parent = canvas.parentNode;
+  if (!parent) return;
+  const newCanvas = document.createElement("canvas");
+  newCanvas.id = "game";
+  newCanvas.width = canvas.width;
+  newCanvas.height = canvas.height;
+  parent.replaceChild(newCanvas, canvas);
+  canvas = newCanvas;
+  ctx = canvas.getContext("2d");
+  bindCanvasEvents();
+  state.mode = "victoryField";
+  state.player.x = canvas.width / 2;
+  state.player.y = canvas.height / 2;
+  const cageRect = getFieldCageRect();
+  state.princessPos = {
+    x: cageRect.x + cageRect.w / 2,
+    y: cageRect.y + cageRect.h - 40,
+  };
+  state.princessFollowing = false;
+  generateVictoryStraws();
+}
+
+function handleClick(evt) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const x = (evt.clientX - rect.left) * scaleX;
+  const y = (evt.clientY - rect.top) * scaleY;
+  const toggleRect = getDebugToggleRect();
+  if (pointInRect(x, y, toggleRect)) {
+    state.debugBypassLocks = !state.debugBypassLocks;
+    state.lockNoticeText = state.debugBypassLocks
+      ? "Debug: locks bypassed."
+      : "Debug: locks restored.";
+    state.lockNoticeTimer = 1.8;
   }
 }
 
@@ -319,6 +500,20 @@ function update(dt) {
     state.player.radius,
     canvas.height - state.player.radius
   );
+
+  if (state.mode === "victoryField" && state.princessFollowing) {
+    const targetX = state.player.x - 30;
+    const targetY = state.player.y + 20;
+    const dxFollow = targetX - state.princessPos.x;
+    const dyFollow = targetY - state.princessPos.y;
+    const dist = Math.hypot(dxFollow, dyFollow);
+    const speed = 140;
+    if (dist > 2) {
+      const step = Math.min(dist, speed * dt);
+      state.princessPos.x += (dxFollow / dist) * step;
+      state.princessPos.y += (dyFollow / dist) * step;
+    }
+  }
 
   if (state.mode === "house") {
     enforceInteriorCollisions(prevX, prevY);
@@ -553,6 +748,206 @@ function drawDungeon() {
   ctx.fillText("Move left to return to Village 1", canvas.width / 2, 80);
 
   drawDungeonExitSign();
+  drawDungeonSpikes();
+  drawDungeonChest();
+  drawDungeonWarningSign();
+}
+
+function drawOpenCave() {
+  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, "#6b6559");
+  gradient.addColorStop(1, "#3b352c");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (!state.dragonDefeated) {
+    drawCaveDragon();
+  }
+
+  ctx.fillStyle = "#a19074";
+  ctx.font = "28px 'Trebuchet MS', sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("Open Cave", canvas.width / 2, 42);
+}
+
+function drawVictoryField() {
+  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, "#68b86b");
+  gradient.addColorStop(1, "#3f8a4c");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  drawFieldGrassStraws();
+
+  ctx.fillStyle = "#f2f0d8";
+  ctx.font = "26px 'Trebuchet MS', sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("Green Field", canvas.width / 2, 44);
+
+  drawFieldCage();
+  if (state.princessFollowing) {
+    drawPrincess(state.princessPos.x, state.princessPos.y);
+  }
+}
+
+function drawFieldGrassStraws() {
+  ctx.strokeStyle = "rgba(255,255,255,0.12)";
+  ctx.lineWidth = 2;
+  victoryStraws.forEach((straw) => {
+    const x = straw.x;
+    const y = straw.y;
+    const height = straw.height;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + straw.lean, y - height);
+    ctx.stroke();
+  });
+}
+
+function drawFieldCage() {
+  const rect = getFieldCageRect();
+  ctx.fillStyle = "#6b6b6b";
+  ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+  ctx.strokeStyle = "#2f2f2f";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+  ctx.strokeStyle = "#bdbdbd";
+  ctx.lineWidth = 3;
+  for (let i = 1; i <= 4; i += 1) {
+    const x = rect.x + (rect.w / 5) * i;
+    ctx.beginPath();
+    ctx.moveTo(x, rect.y + 10);
+    ctx.lineTo(x, rect.y + rect.h - 10);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = "#8a8a8a";
+  ctx.beginPath();
+  ctx.moveTo(rect.x + 10, rect.y + rect.h / 2);
+  ctx.lineTo(rect.x + rect.w - 10, rect.y + rect.h / 2);
+  ctx.stroke();
+
+  if (!state.princessFollowing) {
+    drawPrincessInCage(rect);
+  }
+}
+
+function drawPrincessInCage(rect) {
+  const centerX = rect.x + rect.w / 2;
+  const baseY = rect.y + rect.h - 26;
+  drawPrincess(centerX, baseY);
+}
+
+function drawPrincess(centerX, baseY) {
+  ctx.fillStyle = "#f1cf9a";
+  ctx.beginPath();
+  ctx.arc(centerX, baseY - 50, 16, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#d06ab0";
+  ctx.beginPath();
+  ctx.moveTo(centerX - 18, baseY - 30);
+  ctx.lineTo(centerX + 18, baseY - 30);
+  ctx.lineTo(centerX + 32, baseY + 10);
+  ctx.lineTo(centerX - 32, baseY + 10);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#e2c174";
+  ctx.beginPath();
+  ctx.arc(centerX, baseY - 58, 18, Math.PI, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#f5d442";
+  ctx.beginPath();
+  ctx.arc(centerX - 8, baseY - 68, 4, 0, Math.PI * 2);
+  ctx.arc(centerX + 8, baseY - 68, 4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawCaveDragon() {
+  const centerX = canvas.width * 0.58;
+  const baseY = canvas.height * 0.68;
+  ctx.fillStyle = "#2b241c";
+  ctx.strokeStyle = "#1a1511";
+  ctx.lineWidth = 4;
+
+  // long lizard body
+  ctx.beginPath();
+  ctx.ellipse(centerX, baseY, 240, 55, -0.08, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // thin neck + head
+  ctx.beginPath();
+  ctx.moveTo(centerX - 160, baseY - 30);
+  ctx.quadraticCurveTo(centerX - 260, baseY - 110, centerX - 220, baseY - 180);
+  ctx.quadraticCurveTo(centerX - 160, baseY - 220, centerX - 110, baseY - 185);
+  ctx.quadraticCurveTo(centerX - 130, baseY - 110, centerX - 120, baseY - 40);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // nose tip
+  ctx.fillStyle = "#241e17";
+  ctx.beginPath();
+  ctx.moveTo(centerX - 210, baseY - 175);
+  ctx.lineTo(centerX - 235, baseY - 168);
+  ctx.lineTo(centerX - 210, baseY - 160);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#3a3026";
+
+  // wings
+  ctx.fillStyle = "#3a3026";
+  ctx.beginPath();
+  ctx.moveTo(centerX - 20, baseY - 40);
+  ctx.lineTo(centerX + 140, baseY - 220);
+  ctx.lineTo(centerX + 260, baseY - 80);
+  ctx.lineTo(centerX + 60, baseY + 10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(centerX - 60, baseY - 20);
+  ctx.lineTo(centerX + 60, baseY - 200);
+  ctx.lineTo(centerX + 140, baseY - 40);
+  ctx.lineTo(centerX + 10, baseY + 20);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // legs
+  ctx.fillStyle = "#241e17";
+  ctx.strokeStyle = "#1a1511";
+  ctx.lineWidth = 3;
+  const legY = baseY + 30;
+  const legs = [
+    { x: centerX - 140, w: 26, h: 58 },
+    { x: centerX - 80, w: 28, h: 62 },
+    { x: centerX - 10, w: 30, h: 64 },
+    { x: centerX + 70, w: 26, h: 58 },
+  ];
+  legs.forEach((leg) => {
+    ctx.beginPath();
+    ctx.roundRect(leg.x, legY, leg.w, leg.h, 6);
+    ctx.fill();
+    ctx.stroke();
+  });
+
+  // long tail
+  ctx.strokeStyle = "#1a1511";
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.moveTo(centerX + 200, baseY + 10);
+  ctx.quadraticCurveTo(centerX + 360, baseY + 60, centerX + 420, baseY + 120);
+  ctx.stroke();
+
+  // eye glow
+  ctx.fillStyle = "#f56b3f";
+  ctx.beginPath();
+  ctx.arc(centerX - 190, baseY - 175, 6, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function drawRoomOneKitchen(floorStart) {
@@ -808,6 +1203,16 @@ function getRoomOneOvenRect() {
   return { x: ovenX, y: ovenY, w: ovenWidth, h: ovenHeight };
 }
 
+function getRoomOneCabinetRect() {
+  const upperHeight = 120;
+  return {
+    x: 60,
+    y: 50,
+    w: canvas.width - 120,
+    h: upperHeight - 20,
+  };
+}
+
 function getRoomOneAllowedAreas() {
   const oven = getRoomOneOvenRect();
   const door = getInteriorExitDoorRect(1);
@@ -1032,6 +1437,33 @@ function getDungeonExitSignRect() {
   };
 }
 
+function getDungeonWarningSignRect() {
+  return { x: 960, y: 140, w: 140, h: 50 };
+}
+
+function getCaveDragonRect() {
+  return { x: canvas.width * 0.22, y: canvas.height * 0.32, w: 560, h: 360 };
+}
+
+function getFieldCageRect() {
+  return { x: canvas.width * 0.6, y: canvas.height * 0.52, w: 220, h: 160 };
+}
+
+function getDebugToggleRect() {
+  return { x: canvas.width - 190, y: 16, w: 174, h: 32 };
+}
+
+function getDungeonChestRect() {
+  const width = 70;
+  const height = 50;
+  return {
+    x: 720,
+    y: canvas.height / 2 - height / 2 + 30,
+    w: width,
+    h: height,
+  };
+}
+
 function drawDungeonExitSign() {
   const rect = getDungeonExitSignRect();
   ctx.fillStyle = "#4b3517";
@@ -1043,6 +1475,49 @@ function drawDungeonExitSign() {
   ctx.font = "20px 'Trebuchet MS', sans-serif";
   ctx.textAlign = "center";
   ctx.fillText("Exit", rect.x + rect.w / 2, rect.y + 30);
+}
+
+function drawDungeonSpikes() {
+  ctx.fillStyle = "#d9d9d9";
+  ctx.strokeStyle = "#8a8a8a";
+  ctx.lineWidth = 1;
+  DUNGEON_SPIKES.forEach((spike) => {
+    ctx.beginPath();
+    ctx.moveTo(spike.x, spike.y + spike.h);
+    ctx.lineTo(spike.x + spike.w / 2, spike.y);
+    ctx.lineTo(spike.x + spike.w, spike.y + spike.h);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  });
+}
+
+function drawDungeonChest() {
+  const rect = getDungeonChestRect();
+  ctx.fillStyle = "#6b3a1a";
+  ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+  ctx.fillStyle = "#a66a2b";
+  ctx.fillRect(rect.x + 6, rect.y + 8, rect.w - 12, rect.h - 16);
+  ctx.strokeStyle = "#f0d580";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+  ctx.fillStyle = "#f7e19c";
+  ctx.font = "14px 'Trebuchet MS', sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("Chest", rect.x + rect.w / 2, rect.y + rect.h / 2 + 5);
+}
+
+function drawDungeonWarningSign() {
+  const rect = getDungeonWarningSignRect();
+  ctx.fillStyle = "#4b3517";
+  ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+  ctx.strokeStyle = "#f0d580";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+  ctx.fillStyle = "#f7e19c";
+  ctx.font = "18px 'Trebuchet MS', sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("Dont go in", rect.x + rect.w / 2, rect.y + 32);
 }
 
 function drawRoomFourWalls() {
@@ -1193,6 +1668,14 @@ function pointInRect(x, y, rect) {
   return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
 }
 
+function circleHitsRect(x, y, radius, rect) {
+  const closestX = clamp(x, rect.x, rect.x + rect.w);
+  const closestY = clamp(y, rect.y, rect.y + rect.h);
+  const dx = x - closestX;
+  const dy = y - closestY;
+  return dx * dx + dy * dy <= radius * radius;
+}
+
 function enforceInteriorCollisions(prevX, prevY) {
   if (state.currentHouse == null) return;
   const roomNumber = state.currentHouse + 1;
@@ -1257,6 +1740,10 @@ function attemptDigSite() {
   }
   state.digSiteUsed = true;
   giveRoomFourKey();
+  state.inventory.hammer = true;
+  state.inventory.shovel = false;
+  state.lockNoticeText = "Dug up Key 4 and a hammer!";
+  state.lockNoticeTimer = 2.2;
   addDebugLog("Successfully dug up treasure");
   return true;
 }
@@ -1278,6 +1765,14 @@ function handleDungeonState(prevX, prevY) {
     state.player.x = prevX;
     state.player.y = prevY;
   }
+  const hitSpike = DUNGEON_SPIKES.some((spike) =>
+    circleHitsRect(state.player.x, state.player.y, state.player.radius, spike)
+  );
+  if (hitSpike) {
+    state.lockNoticeText = "Ouch! Spikes got you.";
+    state.lockNoticeTimer = 2.2;
+    exitDungeonToField();
+  }
 }
 
 function isInDungeonPath(x, y) {
@@ -1287,10 +1782,19 @@ function isInDungeonPath(x, y) {
 }
 
 function enterHouse(index, doorRect) {
-  if (!state.roomsUnlocked[index]) {
-    state.lockNoticeText = `Room ${index + 1} is locked.`;
-    state.lockNoticeTimer = 2.2;
-    return;
+  if (!state.roomsUnlocked[index] && !state.debugBypassLocks) {
+    const keyName = `key${index + 1}`;
+    if (state.inventory[keyName]) {
+      state.inventory[keyName] = false;
+      state.roomsUnlocked[index] = true;
+      state.lockNoticeText = `Used Key ${index + 1} to open Room ${index + 1}!`;
+      state.lockNoticeTimer = 2.2;
+      addDebugLog(`Unlocked Room ${index + 1} with Key ${index + 1}`);
+    } else {
+      state.lockNoticeText = `Room ${index + 1} is locked.`;
+      state.lockNoticeTimer = 2.2;
+      return;
+    }
   }
   state.mode = "house";
   state.currentHouse = index;
@@ -1317,8 +1821,13 @@ function exitHouse() {
 }
 
 function enterDungeonFromPath() {
-  if (!state.inventory.key1 || !state.inventory.key2 || !state.inventory.key3 || !state.inventory.key4) {
-    state.lockNoticeText = "Need all four keys before entering.";
+  if (!state.inventory.hammer && !state.debugBypassLocks) {
+    state.lockNoticeText = "Need the hammer to open the dungeon sign.";
+    state.lockNoticeTimer = 2.5;
+    return;
+  }
+  if (!state.roomsUnlocked.every(Boolean) && !state.debugBypassLocks) {
+    state.lockNoticeText = "Unlock all four rooms before entering.";
     state.lockNoticeTimer = 2.5;
     return;
   }
@@ -1420,6 +1929,26 @@ function drawPlayer() {
   ctx.beginPath();
   ctx.arc(x, y + radius / 2 - jumpOffset, radius + 6, Math.PI * 1.1, Math.PI * 1.9);
   ctx.stroke();
+
+  if (state.inventory.sword) {
+    drawPlayerSword(x, y, radius, jumpOffset);
+  }
+}
+
+function drawPlayerSword(x, y, radius, jumpOffset) {
+  const bladeLength = radius * 2.1;
+  ctx.save();
+  ctx.translate(x + radius * 0.9, y - radius * 0.2 - jumpOffset);
+  ctx.fillStyle = "#cfd6df";
+  ctx.strokeStyle = "#8e99a6";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.rect(0, -bladeLength / 2, 6, bladeLength);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#7a4b1f";
+  ctx.fillRect(-6, bladeLength / 2 - 6, 18, 8);
+  ctx.restore();
 }
 
 function drawKey() {
@@ -1446,20 +1975,259 @@ function drawKey() {
   ctx.stroke();
 }
 
+function drawKeyIcon(x, y, size) {
+  const ringRadius = size * 0.22;
+  const shaftLength = size * 0.55;
+  const shaftHeight = size * 0.18;
+  const toothWidth = size * 0.12;
+  const lineWidth = Math.max(1, size * 0.08);
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = "#f7e96a";
+  ctx.strokeStyle = "#c18f32";
+  ctx.lineWidth = lineWidth;
+
+  ctx.beginPath();
+  ctx.arc(-size * 0.25, 0, ringRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillRect(
+    -size * 0.25 + ringRadius,
+    -shaftHeight / 2,
+    shaftLength,
+    shaftHeight
+  );
+  ctx.fillRect(
+    -size * 0.25 + ringRadius + shaftLength * 0.6,
+    -shaftHeight / 2,
+    toothWidth,
+    shaftHeight * 0.9
+  );
+
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawShovelIcon(x, y, size) {
+  const handleWidth = size * 0.12;
+  const handleHeight = size * 0.6;
+  const bladeWidth = size * 0.42;
+  const bladeHeight = size * 0.28;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = "#8a5a2b";
+  ctx.strokeStyle = "#5a3816";
+  ctx.lineWidth = Math.max(1, size * 0.06);
+
+  ctx.fillRect(-handleWidth / 2, -handleHeight / 2, handleWidth, handleHeight);
+
+  ctx.fillStyle = "#b6b6b6";
+  ctx.beginPath();
+  ctx.moveTo(-bladeWidth / 2, handleHeight / 2 - 2);
+  ctx.lineTo(bladeWidth / 2, handleHeight / 2 - 2);
+  ctx.lineTo(bladeWidth * 0.35, handleHeight / 2 + bladeHeight);
+  ctx.lineTo(-bladeWidth * 0.35, handleHeight / 2 + bladeHeight);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawSwordIcon(x, y, size) {
+  const bladeWidth = size * 0.14;
+  const bladeHeight = size * 0.65;
+  const hiltWidth = size * 0.35;
+  const hiltHeight = size * 0.1;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = "#cfd6df";
+  ctx.strokeStyle = "#8e99a6";
+  ctx.lineWidth = Math.max(1, size * 0.05);
+
+  ctx.fillRect(-bladeWidth / 2, -bladeHeight / 2, bladeWidth, bladeHeight);
+
+  ctx.fillStyle = "#7a4b1f";
+  ctx.fillRect(-hiltWidth / 2, bladeHeight / 2 - hiltHeight, hiltWidth, hiltHeight);
+  ctx.fillRect(-bladeWidth / 2, bladeHeight / 2 - hiltHeight - size * 0.16, bladeWidth, size * 0.16);
+
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawHammerIcon(x, y, size) {
+  const handleWidth = size * 0.12;
+  const handleHeight = size * 0.55;
+  const headWidth = size * 0.5;
+  const headHeight = size * 0.18;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = "#7a4b1f";
+  ctx.strokeStyle = "#5a3816";
+  ctx.lineWidth = Math.max(1, size * 0.05);
+
+  ctx.fillRect(-handleWidth / 2, -handleHeight / 2, handleWidth, handleHeight);
+
+  ctx.fillStyle = "#c2c7cf";
+  ctx.fillRect(-headWidth / 2, -handleHeight / 2 - headHeight, headWidth, headHeight);
+
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawBowIcon(x, y, size) {
+  const bowRadius = size * 0.35;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.strokeStyle = "#7a4b1f";
+  ctx.lineWidth = Math.max(1, size * 0.06);
+
+  ctx.beginPath();
+  ctx.arc(-size * 0.1, 0, bowRadius, Math.PI * 1.2, Math.PI * 1.8);
+  ctx.stroke();
+
+  ctx.strokeStyle = "#e7e0d0";
+  ctx.beginPath();
+  ctx.moveTo(-size * 0.1, -bowRadius);
+  ctx.lineTo(-size * 0.1, bowRadius);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawArrowIcon(x, y, size) {
+  const shaftLength = size * 0.55;
+  const headSize = size * 0.14;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.strokeStyle = "#c9cfd8";
+  ctx.lineWidth = Math.max(1, size * 0.06);
+  ctx.beginPath();
+  ctx.moveTo(-shaftLength / 2, 0);
+  ctx.lineTo(shaftLength / 2, 0);
+  ctx.stroke();
+
+  ctx.fillStyle = "#c9cfd8";
+  ctx.beginPath();
+  ctx.moveTo(shaftLength / 2, 0);
+  ctx.lineTo(shaftLength / 2 - headSize, -headSize);
+  ctx.lineTo(shaftLength / 2 - headSize, headSize);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawHearts() {
+  const size = GRID_SIZE * 0.4;
+  const gap = size * 0.25;
+  const startX = 16;
+  const y = canvas.height - size - 12;
+  for (let i = 0; i < state.maxHealth; i += 1) {
+    const x = startX + i * (size + gap);
+    ctx.fillStyle = i < state.health ? "#d94a4a" : "rgba(217,74,74,0.25)";
+    ctx.beginPath();
+    ctx.moveTo(x + size / 2, y + size);
+    ctx.bezierCurveTo(x - size * 0.1, y + size * 0.55, x, y, x + size / 2, y + size * 0.35);
+    ctx.bezierCurveTo(x + size, y, x + size * 1.1, y + size * 0.55, x + size / 2, y + size);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawDebugToggle() {
+  const rect = getDebugToggleRect();
+  ctx.fillStyle = state.debugBypassLocks ? "rgba(70, 160, 90, 0.8)" : "rgba(90, 90, 90, 0.8)";
+  ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+  ctx.strokeStyle = "#f5d442";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.w - 1, rect.h - 1);
+  ctx.fillStyle = "#f5f5f5";
+  ctx.font = "14px 'Trebuchet MS', sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(
+    state.debugBypassLocks ? "Debug: Locks OFF" : "Debug: Locks ON",
+    rect.x + rect.w / 2,
+    rect.y + 21
+  );
+}
+
 function drawScore() {
-  ctx.fillStyle = "#f5d442";
-  ctx.font = "22px 'Trebuchet MS', sans-serif";
-  ctx.textAlign = "left";
-  const key1 = state.inventory.key1 ? "Found" : "Missing";
-  const key2 = state.inventory.key2 ? "Found" : "Missing";
-  const key3 = state.inventory.key3 ? "Found" : "Missing";
-  const key4 = state.inventory.key4 ? "Found" : "Missing";
-  const shovelStatus = state.inventory.shovel ? "Yes" : "No";
-  ctx.fillText(`Key 1: ${key1}`, 16, 32);
-  ctx.fillText(`Key 2: ${key2}`, 16, 60);
-  ctx.fillText(`Key 3: ${key3}`, 16, 88);
-  ctx.fillText(`Key 4: ${key4}`, 16, 116);
-  ctx.fillText(`Shovel: ${shovelStatus}`, 16, 144);
+  const keySize = GRID_SIZE * 0.45;
+  const keyGap = keySize * 0.25;
+  const keyStartX = 16;
+  const keyStartY = 16;
+
+  const keySlots = [
+    state.inventory.key1,
+    state.inventory.key2,
+    state.inventory.key3,
+    state.inventory.key4,
+  ];
+  for (let i = 0; i < keySlots.length; i += 1) {
+    const x = keyStartX;
+    const y = keyStartY + i * (keySize + keyGap);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+    ctx.fillRect(x, y, keySize, keySize);
+    ctx.strokeStyle = "#f5d442";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 0.5, y + 0.5, keySize - 1, keySize - 1);
+    if (keySlots[i]) {
+      drawKeyIcon(x + keySize / 2, y + keySize / 2, keySize * 0.9);
+    }
+  }
+
+  drawDebugToggle();
+  drawHearts();
+
+  const slotSize = GRID_SIZE * 0.5;
+  const gap = slotSize * 0.35;
+  const totalWidth = slotSize * 5 + gap * 4;
+  const startX = (canvas.width - totalWidth) / 2;
+  const startY = canvas.height - slotSize - 14;
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+  ctx.fillRect(
+    startX - 12,
+    startY - 10,
+    totalWidth + 24,
+    slotSize + 20
+  );
+
+  const toolSlots = [
+    state.inventory.shovel,
+    state.inventory.sword,
+    state.inventory.hammer,
+    state.inventory.bow,
+    state.inventory.arrows > 0,
+  ];
+  for (let i = 0; i < toolSlots.length; i += 1) {
+    const x = startX + i * (slotSize + gap);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+    ctx.fillRect(x, startY, slotSize, slotSize);
+    ctx.strokeStyle = "#f5d442";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 0.5, startY + 0.5, slotSize - 1, slotSize - 1);
+    if (!toolSlots[i]) continue;
+    if (i === 0) {
+      drawShovelIcon(x + slotSize / 2, startY + slotSize / 2, slotSize * 0.9);
+    } else if (i === 1) {
+      drawSwordIcon(x + slotSize / 2, startY + slotSize / 2, slotSize * 0.9);
+    } else if (i === 2) {
+      drawHammerIcon(x + slotSize / 2, startY + slotSize / 2, slotSize * 0.9);
+    } else if (i === 3) {
+      drawBowIcon(x + slotSize / 2, startY + slotSize / 2, slotSize * 0.9);
+    } else {
+      drawArrowIcon(x + slotSize / 2, startY + slotSize / 2, slotSize * 0.9);
+      ctx.fillStyle = "#f5d442";
+      ctx.font = "14px 'Trebuchet MS', sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(
+        String(state.inventory.arrows),
+        x + slotSize - 4,
+        startY + slotSize - 6
+      );
+    }
+  }
 }
 
 function drawLockNotice() {
@@ -1485,6 +2253,12 @@ function draw() {
     drawInteriorOverlay(roomNumber);
   } else if (state.mode === "dungeon1") {
     drawDungeon();
+    drawPlayer();
+  } else if (state.mode === "cave") {
+    drawOpenCave();
+    drawPlayer();
+  } else if (state.mode === "victoryField") {
+    drawVictoryField();
     drawPlayer();
   } else {
     drawBackground();
